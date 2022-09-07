@@ -3,9 +3,6 @@
 
 #define REDIS_SERVER_IP	"127.0.0.1"
 #define REDIS_SERVER_PORT	6379
-#define ICS_AUDIT_CHANNEL	"ChannelICSAudit"
-#define ICS_STUDY_CHANNEL	"ChannelICSStudy"
-#define ICS_WARN_CHANNEL	"ChannelICSWarn"
 
 #define ETH_ADDR_STRING_LEN	19
 
@@ -21,6 +18,7 @@ typedef enum {
 	MODBUS = 0,
 	DNP3,
 	TRDP,
+	ENIP,
 	HTTP1,
 	FTP,
 	FTPDATA,
@@ -51,6 +49,7 @@ typedef enum {
 	TRDP_AUDIT_DATA,
 	TRDP_STUDY_DATA,
 	TRDP_WARNING_DATA,
+	ENIP_AUDIT_DATA,
 	HTTP1_AUDIT_DATA,
 	FTP_AUDIT_DATA,
 	TELNET_AUDIT_DATA,
@@ -194,6 +193,29 @@ typedef struct {
         } rw_addr_quan;
     }u;
 } ics_modbus_t;
+
+#define ENIP_SERVICE_MAX    128
+#define CIP_SERVICE_MAX     32
+#define CIP_SERVICES_BUF_MAX	2048
+typedef struct {
+    uint8_t service;
+    uint8_t class;
+    uint8_t instance;
+    uint8_t reserved;
+} cip_service_t;
+
+typedef struct {
+    uint16_t command;
+    uint32_t session;
+    uint32_t conn_id;
+    uint8_t cip_service_count;
+    cip_service_t cip_services[CIP_SERVICE_MAX];
+} enip_service_t;
+
+typedef struct {
+    uint16_t enip_service_count;
+    enip_service_t enip_services[ENIP_SERVICE_MAX];
+} ics_enip_t;
 
 typedef struct {
     uint32_t sip;

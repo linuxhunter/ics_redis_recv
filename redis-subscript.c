@@ -293,7 +293,7 @@ int write_study_modbus_data(study_common_data_t *study_common_data, modbus_ht_it
 		goto out;
 	}
 	if (check_study_data_unique(handle, STUDY_MODBUS_TABLE_INDEX, study_common_data, (void *)study_modbus_data)) {
-		printf("duplicated modbus study data item!!!\n");
+		//printf("duplicated modbus study data item!!!\n");
 		goto out;
 	}
 	len = snprintf(query, sizeof(query), "%s", sql_tables[STUDY_MODBUS_TABLE_INDEX].insert_string);
@@ -486,7 +486,7 @@ int write_study_trdp_data(study_common_data_t *study_common_data, trdp_ht_item_t
 		goto out;
 	}
 	if (check_study_data_unique(handle, STUDY_TRDP_TABLE_INDEX, study_common_data, (void *)study_trdp_data)) {
-		printf("duplicated trdp study data item!!!\n");
+		//printf("duplicated trdp study data item!!!\n");
 		goto out;
 	}
 	len = snprintf(query, sizeof(query), "%s", sql_tables[STUDY_TRDP_TABLE_INDEX].insert_string);
@@ -550,7 +550,7 @@ int write_study_dnp3_data(study_dnp3_data_t *dnp3_data)
 		goto out;
 	}
 	if (check_study_data_unique(handle, STUDY_DNP3_TABLE_INDEX, NULL, (void *)dnp3_data)) {
-		printf("duplicated dnp3 study data item!!!\n");
+		//printf("duplicated dnp3 study data item!!!\n");
 		goto out;
 	}
 	len = snprintf(query, sizeof(query), "%s", sql_tables[STUDY_DNP3_TABLE_INDEX].insert_string);
@@ -677,6 +677,78 @@ int handle_warning_trdp_data(tlv_box_t *parsedBox)
 		warning_data.com_id);
 	return 0;
 }
+
+int write_audit_enip_data(audit_common_data_t *audit_common_data, ics_enip_t *audit_enip_data)
+{
+	sql_handle handle;
+	int len, cip_service_len = 0;
+	char query[SQL_QUERY_SIZE] = {0}, *end = NULL;
+	uint16_t enip_index;
+	uint8_t cip_index;
+	char cip_services_buffer[CIP_SERVICES_BUF_MAX] = {0};
+
+	handle = sql_db_connect(SQL_DB);
+	if (handle == NULL) {
+		printf("connect database %s error.\n", SQL_DB);
+		goto out;
+	}
+	write_audit_main_data(handle, audit_common_data, ENIP);
+
+	for (enip_index = 0; enip_index < audit_enip_data->enip_service_count; enip_index++) {
+		len = snprintf(query, sizeof(query), "%s", sql_tables[AUDIT_ENIP_TABLE_INDEX].insert_string);
+		end = query + len;
+
+		SQL_COPY_UNUMBER(audit_common_data->flow_hash);
+		SQL_FS;
+		SQL_COPY_UNUMBER(audit_common_data->payload_len);
+		SQL_FS;
+		SQL_COPY_UNUMBER(audit_enip_data->enip_services[enip_index].command);
+		SQL_FS;
+		SQL_COPY_UNUMBER(audit_enip_data->enip_services[enip_index].session);
+		SQL_FS;
+		SQL_COPY_UNUMBER(audit_enip_data->enip_services[enip_index].conn_id);
+		SQL_FS;
+		SQL_COPY_UNUMBER(audit_enip_data->enip_services[enip_index].cip_service_count);
+		SQL_FS;
+		if (audit_enip_data->enip_services[enip_index].cip_service_count > 0) {
+			for (cip_service_len = 0, cip_index = 0; cip_index < audit_enip_data->enip_services[enip_index].cip_service_count; cip_index++) {
+				cip_service_len += snprintf(cip_services_buffer + cip_service_len, sizeof(cip_services_buffer) - cip_service_len,
+					"service=%02x,class=%02x,instance=%02x,",
+					audit_enip_data->enip_services[enip_index].cip_services[cip_index].service,
+					audit_enip_data->enip_services[enip_index].cip_services[cip_index].class,
+					audit_enip_data->enip_services[enip_index].cip_services[cip_index].instance);
+			}
+			cip_services_buffer[cip_service_len-1] = '\0';
+			SQL_COPY_N_ESCAPE_STRING(cip_services_buffer);
+		} else {
+			SQL_COPY_NULL_ESCAPE_STRING();
+		}
+		SQL_EOQ;
+
+		if (sql_real_query(handle, query, end - query) != SQL_SUCCESS) {
+			printf("running SQL [%s] error.\n", query);
+		}
+	}
+	sql_db_disconnect(handle);
+out:
+	return 0;
+}
+
+int handle_audit_enip_data(tlv_box_t *parsedBox)
+{
+	audit_common_data_t audit_common_data;
+	ics_enip_t audit_enip_data;
+	int enip_data_length = sizeof(ics_enip_t);
+
+	memset(&audit_common_data, 0x00, sizeof(audit_common_data));
+	memset(&audit_enip_data, 0x00, sizeof(audit_enip_data));
+
+	handle_audit_common_data(parsedBox, &audit_common_data);
+	tlv_box_get_bytes(parsedBox, ENIP_AUDIT_DATA, (unsigned char *)&audit_enip_data, &enip_data_length);
+	write_audit_enip_data(&audit_common_data, &audit_enip_data);
+	return 0;
+}
+
 
 int write_audit_http1_data(audit_http1_data_t *audit_http1_data)
 {
@@ -902,6 +974,7 @@ int handle_audit_data(char *args)
 	sscanf((char *)audit_data, "%d:", &audit_data_len);
 	audit_data = (uint8_t *)strchr((char *)audit_data, ':');
 	audit_data++;
+
 	parsedBox = tlv_box_parse(audit_data, audit_data_len);
 	if (parsedBox == NULL) {
 		ret = -1;
@@ -917,6 +990,9 @@ int handle_audit_data(char *args)
 			break;
 		case TRDP:
 			handle_audit_trdp_data(parsedBox);
+			break;
+		case ENIP:
+			handle_audit_enip_data(parsedBox);
 			break;
 		case HTTP1:
 			handle_audit_http1_data(parsedBox);
@@ -1021,38 +1097,29 @@ void *channel_reader(void *arg)
 		printf("connect redis server error.\n");
 		goto out;
 	}
-	reply = redisCommand(context, "SUBSCRIBE %s", ICS_AUDIT_CHANNEL);
-	freeReplyObject(reply);
-	reply = redisCommand(context, "SUBSCRIBE %s", ICS_STUDY_CHANNEL);
-	freeReplyObject(reply);
-	reply = redisCommand(context, "SUBSCRIBE %s", ICS_WARN_CHANNEL);
-	freeReplyObject(reply);
-
-	while (redisGetReply(context, (void **)&reply) == REDIS_OK) {
+	while(1) {
+		reply = redisCommand(context, "brpop audit study warning 0");
 		if (reply) {
 			switch(reply->type) {
 				case REDIS_REPLY_ARRAY:
-					{
-						if (reply->elements > 2) {
-							if (!strncmp(reply->element[0]->str, "message", strlen("message"))) {
-								for (int i = 2; i < reply->elements; i++) {
-									if (!strncmp(reply->element[1]->str, ICS_AUDIT_CHANNEL, strlen(ICS_AUDIT_CHANNEL))) {
-										handle_audit_data(reply->element[i]->str);
-									} else if (!strncmp(reply->element[1]->str, ICS_STUDY_CHANNEL, strlen(ICS_STUDY_CHANNEL))) {
-										handle_study_data(reply->element[i]->str);
-									} else if (!strncmp(reply->element[1]->str, ICS_WARN_CHANNEL, strlen(ICS_WARN_CHANNEL))) {
-										handle_warning_data(reply->element[i]->str);
-									}
-								}
-							}
+					if (reply->elements > 1) {
+						if (!strncmp(reply->element[0]->str, "audit", strlen("audit"))) {
+							for (int i = 1; i < reply->elements; i++)
+								handle_audit_data(reply->element[i]->str);
+						} else if (!strncmp(reply->element[0]->str, "study", strlen("study"))) {
+							for (int i = 1; i < reply->elements; i++)
+								handle_study_data(reply->element[i]->str);
+						} else if (!strncmp(reply->element[0]->str, "warning", strlen("warning"))) {
+							for (int i = 1; i < reply->elements; i++)
+								handle_warning_data(reply->element[i]->str);
 						}
 					}
 					break;
 				default:
 					break;
 			}
-			freeReplyObject(reply);
 		}
+		freeReplyObject(reply);
 	}
 out:
 	if (context)

@@ -103,6 +103,26 @@
 	"frame_checksum, data ) " \
 	"VALUES (NULL,"
 
+#define AUDIT_ENIP_TABLE_CREATE(t) \
+	"CREATE TABLE IF NOT EXISTS " #t " (" \
+	"id INT UNSIGNED NOT NULL AUTO_INCREMENT," \
+	"datetime DATETIME NULL DEFAULT CURRENT_TIMESTAMP," \
+	"flow_hash INT UNSIGNED NOT NULL," \
+	"payload_len SMALLINT UNSIGNED NOT NULL," \
+	"command SMALLINT UNSIGNED NOT NULL," \
+	"session INT UNSIGNED NOT NULL," \
+	"conn_id INT UNSIGNED NOT NULL," \
+	"cip_service_counts SMALLINT UNSIGNED," \
+	"cip_services VARCHAR(4096)," \
+	"INDEX datetime_index (datetime) USING BTREE," \
+	"PRIMARY KEY(id)" \
+	") "
+
+#define AUDIT_ENIP_TABLE_INSERT(t) \
+	"INSERT INTO " #t "(id, flow_hash, payload_len, " \
+	"command, session, conn_id, cip_service_counts, cip_services ) " \
+	"VALUES (NULL,"
+
 #define AUDIT_HTTP1_TABLE_CREATE(t) \
 	"CREATE TABLE IF NOT EXISTS " #t " (" \
 	"id INT UNSIGNED NOT NULL AUTO_INCREMENT," \
@@ -248,6 +268,14 @@
 		AUDIT_TRDP_TABLE_CREATE(audit_trdp_table), \
 		AUDIT_TRDP_TABLE_INSERT(audit_trdp_table), \
 		SQL_TABLE_DROP(audit_trdp_table), \
+		NULL \
+	}
+
+#define AUDIT_ENIP_TABLE \
+	{	"audit_enip_table", \
+		AUDIT_ENIP_TABLE_CREATE(audit_enip_table), \
+		AUDIT_ENIP_TABLE_INSERT(audit_enip_table), \
+		SQL_TABLE_DROP(audit_enip_table), \
 		NULL \
 	}
 
