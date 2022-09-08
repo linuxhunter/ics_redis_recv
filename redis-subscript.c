@@ -254,6 +254,22 @@ int check_study_data_unique(sql_handle handle, int db_index, study_common_data_t
 					common_data->template_id);
 			}
 			break;
+		case STUDY_ENIP_TABLE_INDEX:
+			{
+				study_enip_data_t *enip_data = (study_enip_data_t *)study_data;
+				len = snprintf(query, sizeof(query), "select id from %s where src_ip=%u AND dst_ip=%u AND proto=%u AND command=%u AND session=%u AND conn_id=%u AND service=%u AND class=%u AND template_id=%d ",
+					sql_tables[db_index].table_name,
+					enip_data->common.sip,
+					enip_data->common.dip,
+					enip_data->common.proto,
+					enip_data->command,
+					enip_data->session,
+					enip_data->conn_id,
+					enip_data->service,
+					enip_data->class,
+					enip_data->common.template_id);
+			}
+			break;
 		default:
 			goto out;
 	}
@@ -610,6 +626,85 @@ int handle_study_dnp3_data(tlv_box_t *parsedBox)
 		memcpy(&dnp3_data.size, dnp3_study_data_buffer + offset, sizeof(uint32_t));
 		offset += sizeof(uint32_t);
 		write_study_dnp3_data(&dnp3_data);
+	}
+	return 0;
+}
+
+#define ENIP_DATA_BUFFER_LENGTH     4096
+int write_study_enip_data(study_enip_data_t *enip_data)
+{
+	int ret = SQL_SUCCESS;
+	sql_handle handle;
+	int len;
+	char query[SQL_QUERY_SIZE] = {0}, *end = NULL;
+
+	handle = sql_db_connect(SQL_DB);
+	if (handle == NULL) {
+		printf("connect database %s error.\n", SQL_DB);
+		ret = SQL_FAILED;
+		goto out;
+	}
+	if (check_study_data_unique(handle, STUDY_ENIP_TABLE_INDEX, NULL, (void *)enip_data)) {
+		//printf("duplicated enip study data item!!!\n");
+		goto out;
+	}
+	len = snprintf(query, sizeof(query), "%s", sql_tables[STUDY_ENIP_TABLE_INDEX].insert_string);
+	end = query + len;
+
+	SQL_COPY_UNUMBER(enip_data->common.sip);
+	SQL_FS;
+	SQL_COPY_UNUMBER(enip_data->common.dip);
+	SQL_FS;
+	SQL_COPY_NUMBER(enip_data->common.proto);
+	SQL_FS;
+	SQL_COPY_UNUMBER(enip_data->command);
+	SQL_FS;
+	SQL_COPY_UNUMBER(enip_data->session);
+	SQL_FS;
+	SQL_COPY_UNUMBER(enip_data->conn_id);
+	SQL_FS;
+	SQL_COPY_UNUMBER(enip_data->service);
+	SQL_FS;
+	SQL_COPY_UNUMBER(enip_data->class);
+	SQL_FS;
+	SQL_COPY_NUMBER(enip_data->common.template_id);
+	SQL_EOQ;
+	if (sql_real_query(handle, query, end - query) != SQL_SUCCESS) {
+		printf("running SQL [%s] error.\n", query);
+	}
+out:
+	if (handle)
+		sql_db_disconnect(handle);
+	return ret;
+}
+
+int handle_study_enip_data(tlv_box_t *parsedBox)
+{
+	study_enip_data_t enip_data;
+	uint8_t enip_study_data_buffer[ENIP_DATA_BUFFER_LENGTH] = {0};
+	int enip_study_data_buffer_length = ENIP_DATA_BUFFER_LENGTH, offset = 0;
+	uint32_t enip_counts;
+
+	memset(&enip_data, 0x00, sizeof(enip_data));
+	tlv_box_get_int(parsedBox, TEMPLATE_ID, &enip_data.common.template_id);
+	tlv_box_get_uint(parsedBox, SRC_IPv4, &enip_data.common.sip);
+	tlv_box_get_uint(parsedBox, DST_IPv4, &enip_data.common.dip);
+	tlv_box_get_uchar(parsedBox, PROTO, &enip_data.common.proto);
+	tlv_box_get_bytes(parsedBox, ENIP_STUDY_DATA, enip_study_data_buffer, &enip_study_data_buffer_length);
+	enip_counts = *((uint32_t *)&enip_study_data_buffer[offset]);
+	offset += sizeof(uint32_t);
+	for (uint32_t i = 0; i < enip_counts; i++) {
+		memcpy(&enip_data.command, enip_study_data_buffer + offset, sizeof(uint16_t));
+		offset += sizeof(uint16_t);
+		memcpy(&enip_data.session, enip_study_data_buffer + offset, sizeof(uint32_t));
+		offset += sizeof(uint32_t);
+		memcpy(&enip_data.conn_id, enip_study_data_buffer + offset, sizeof(uint32_t));
+		offset += sizeof(uint32_t);
+		memcpy(&enip_data.service, enip_study_data_buffer + offset, sizeof(uint8_t));
+		offset += sizeof(uint8_t);
+		memcpy(&enip_data.class, enip_study_data_buffer + offset, sizeof(uint8_t));
+		offset += sizeof(uint8_t);
+		write_study_enip_data(&enip_data);
 	}
 	return 0;
 }
@@ -1039,6 +1134,9 @@ int handle_study_data(char *args)
 			break;
 		case TRDP:
 			handle_study_trdp_data(parsedBox);
+			break;
+		case ENIP:
+			handle_study_enip_data(parsedBox);
 			break;
 		default:
 			break;

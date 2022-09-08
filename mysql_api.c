@@ -49,6 +49,7 @@ sql_tables_t sql_tables[] = {
 	STUDY_MODBUS_TABLE,
 	STUDY_DNP3_TABLE,
 	STUDY_TRDP_TABLE,
+	STUDY_ENIP_TABLE,
 };
 
 int sql_database_init(void)

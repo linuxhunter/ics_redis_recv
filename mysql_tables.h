@@ -239,6 +239,28 @@
 	"packet_type, protocol_version, msg_type, com_id, template_id ) " \
 	"VALUES (NULL,"
 
+#define STUDY_ENIP_TABLE_CREATE(t) \
+	"CREATE TABLE IF NOT EXISTS " #t " (" \
+	"id INT UNSIGNED NOT NULL AUTO_INCREMENT," \
+	"datetime DATETIME NULL DEFAULT CURRENT_TIMESTAMP," \
+	"src_ip INT UNSIGNED NOT NULL," \
+	"dst_ip INT UNSIGNED NOT NULL," \
+	"proto SMALLINT UNSIGNED NOT NULL," \
+	"command SMALLINT UNSIGNED NOT NULL," \
+	"session INT UNSIGNED NOT NULL," \
+	"conn_id INT UNSIGNED NOT NULL," \
+	"service TINYINT UNSIGNED NOT NULL," \
+	"class TINYINT UNSIGNED NOT NULL," \
+	"template_id INT NOT NULL," \
+	"INDEX unique_index(src_ip,dst_ip,proto,command,session,conn_id,service,class,template_id) USING BTREE," \
+	"PRIMARY KEY(id,template_id)" \
+	") "
+
+#define STUDY_ENIP_TABLE_INSERT(t) \
+	"INSERT INTO " #t "(id, src_ip, dst_Ip, proto, " \
+	"command, session, conn_id, service, class, template_id ) " \
+	"VALUES (NULL,"
+
 #define AUDIT_MAIN_TABLE \
 	{	"audit_main_table", \
 		AUDIT_MAIN_TABLE_CREATE(audit_main_table), \
@@ -324,6 +346,14 @@
 		STUDY_TRDP_TABLE_CREATE(study_trdp_table), \
 		STUDY_TRDP_TABLE_INSERT(study_trdp_table), \
 		SQL_TABLE_DROP(study_trdp_table), \
+		NULL \
+	}
+
+#define STUDY_ENIP_TABLE \
+	{	"study_enip_table", \
+		STUDY_ENIP_TABLE_CREATE(study_enip_table), \
+		STUDY_ENIP_TABLE_INSERT(study_enip_table), \
+		SQL_TABLE_DROP(study_enip_table), \
 		NULL \
 	}
 

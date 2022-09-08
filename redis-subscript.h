@@ -50,6 +50,7 @@ typedef enum {
 	TRDP_STUDY_DATA,
 	TRDP_WARNING_DATA,
 	ENIP_AUDIT_DATA,
+	ENIP_STUDY_DATA,
 	HTTP1_AUDIT_DATA,
 	FTP_AUDIT_DATA,
 	TELNET_AUDIT_DATA,
@@ -88,6 +89,15 @@ typedef struct {
 	uint32_t index;
 	uint32_t size;
 } study_dnp3_data_t;
+
+typedef struct {
+	study_common_data_t common;
+	uint16_t command;
+	uint32_t session;
+	uint32_t conn_id;
+	uint8_t service;
+	uint8_t class;
+} study_enip_data_t;
 
 typedef struct {
 	uint8_t smac[6];
@@ -246,6 +256,17 @@ typedef struct {
     uint16_t msg_type;
     uint32_t com_id;
 } trdp_ht_item_t;
+
+typedef struct {
+	uint32_t sip;
+	uint32_t dip;
+	uint8_t proto;
+	uint16_t command;
+	uint32_t session;
+	uint32_t conn_id;
+	uint8_t service;
+	uint8_t class;
+} enip_ht_item_t;
 
 typedef struct {
 	audit_common_data_t common;
