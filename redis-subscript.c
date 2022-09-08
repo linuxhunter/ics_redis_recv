@@ -773,6 +773,28 @@ int handle_warning_trdp_data(tlv_box_t *parsedBox)
 	return 0;
 }
 
+int handle_warning_enip_data(tlv_box_t *parsedBox)
+{
+	int template_id;
+	enip_ht_item_t warning_data;
+	int warning_data_length = sizeof(enip_ht_item_t);
+
+	memset(&warning_data, 0x00, sizeof(warning_data));
+	tlv_box_get_int(parsedBox, TEMPLATE_ID, &template_id);
+	tlv_box_get_bytes(parsedBox, ENIP_WARNING_DATA, (unsigned char *)&warning_data, &warning_data_length);
+	printf("[ENIP][Warning]: template_id = %u, sip = %u, dip = %u, proto = %u, command = %u, session = %u, conn_id = %u, service = %u, class = %u\n",
+		template_id,
+		warning_data.sip,
+		warning_data.dip,
+		warning_data.proto,
+		warning_data.command,
+		warning_data.session,
+		warning_data.conn_id,
+		warning_data.service,
+		warning_data.class);
+	return 0;
+}
+
 int write_audit_enip_data(audit_common_data_t *audit_common_data, ics_enip_t *audit_enip_data)
 {
 	sql_handle handle;
@@ -1174,6 +1196,9 @@ int handle_warning_data(char *args)
 			break;
 		case TRDP:
 			handle_warning_trdp_data(parsedBox);
+			break;
+		case ENIP:
+			handle_warning_enip_data(parsedBox);
 			break;
 		default:
 			break;
