@@ -795,6 +795,17 @@ int handle_warning_enip_data(tlv_box_t *parsedBox)
 	return 0;
 }
 
+int handle_baseline_warning_data(uint8_t app_proto, ics_baseline_warning_data_t baseline_warning_data)
+{
+	printf("app_proto = %u, type = %u, std_min = %u, std_max = %u, real_value = %u\n",
+		app_proto,
+		baseline_warning_data.type,
+		baseline_warning_data.std_min,
+		baseline_warning_data.std_max,
+		baseline_warning_data.real_value);
+	return 0;
+}
+
 int write_audit_enip_data(audit_common_data_t *audit_common_data, ics_enip_t *audit_enip_data)
 {
 	sql_handle handle;
@@ -1177,6 +1188,8 @@ int handle_warning_data(char *args)
 	int warning_data_len = 0;
 	tlv_box_t *parsedBox = NULL;
 	uint8_t app_proto = 0;
+	ics_baseline_warning_data_t baseline_warning_data;
+	int baseline_warning_data_length = sizeof(ics_baseline_warning_data_t);
 
 	sscanf((char *)warning_data, "%d:", &warning_data_len);
 	warning_data = (uint8_t *)strchr((char *)warning_data, ':');
@@ -1186,22 +1199,28 @@ int handle_warning_data(char *args)
 		ret = -1;
 		goto out;
 	}
-	tlv_box_get_uchar(parsedBox, APP_PROTO, &app_proto);
-	switch(app_proto) {
-		case MODBUS:
-			handle_warning_modbus_data(parsedBox);
-			break;
-		case DNP3:
-			handle_warning_dnp3_data(parsedBox);
-			break;
-		case TRDP:
-			handle_warning_trdp_data(parsedBox);
-			break;
-		case ENIP:
-			handle_warning_enip_data(parsedBox);
-			break;
-		default:
-			break;
+
+	if (tlv_box_get_bytes(parsedBox, BASELINE_WARNING_DATA, (unsigned char *)&baseline_warning_data, &baseline_warning_data_length) == 0) {
+		tlv_box_get_uchar(parsedBox, APP_PROTO, &app_proto);
+		handle_baseline_warning_data(app_proto, baseline_warning_data);
+	} else {
+		tlv_box_get_uchar(parsedBox, APP_PROTO, &app_proto);
+		switch(app_proto) {
+			case MODBUS:
+				handle_warning_modbus_data(parsedBox);
+				break;
+			case DNP3:
+				handle_warning_dnp3_data(parsedBox);
+				break;
+			case TRDP:
+				handle_warning_trdp_data(parsedBox);
+				break;
+			case ENIP:
+				handle_warning_enip_data(parsedBox);
+				break;
+			default:
+				break;
+		}
 	}
 out:
 	if (parsedBox) {

@@ -55,6 +55,7 @@ typedef enum {
 	HTTP1_AUDIT_DATA,
 	FTP_AUDIT_DATA,
 	TELNET_AUDIT_DATA,
+	BASELINE_WARNING_DATA,
 	END,
 } ics_tlv_type_t;
 
@@ -288,5 +289,44 @@ typedef struct {
 	int data_length;
 	char *data;
 } audit_telnet_data_t;
+
+#define ICS_BASELINE_DEFAULT_TIMEOUT    10*1000
+#define ICS_BASELINE_DEFAULT_PACK_FREQ  1024
+#define ICS_BASELINE_DEFAULT_BPS_MIN    1024
+#define ICS_BASELINE_DEFAULT_BPS_MAX    1024*1024
+#define ICS_BASELINE_DEFAULT_PPS_MIN    16
+#define ICS_BASELINE_DEFAULT_PPS_MAX    1024
+
+typedef enum {
+    BASELINE_PACKET_FREQ,
+    BASELINE_PPS,
+    BASELINE_BPS,
+} ics_baseline_warning_type_t;
+
+typedef struct {
+    ics_baseline_warning_type_t type;
+    uint32_t std_min;
+    uint32_t std_max;
+    uint32_t real_value;
+} ics_baseline_warning_data_t;
+
+typedef struct {
+    uint32_t timeout;
+    uint32_t packet_frequency;
+    uint32_t bps_min;
+    uint32_t bps_max;
+    uint32_t pps_min;
+    uint32_t pps_max;
+} ics_baseline_info_t;
+
+typedef struct {
+    uint32_t packets;
+    uint32_t bytes;
+} baseline_stat_t;
+
+typedef struct {
+    pthread_mutex_t mutex;
+    baseline_stat_t stats[ICS_PROTO_MAX];
+} ics_baseline_stat_t;
 
 #endif
